@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Unity .gitignore Template
 # Source: https://github.com/github/gitignore/blob/main/Unity.gitignore
 # Last synced: 2026-07-02
@@ -6,6 +7,8 @@
 # This template is maintained from the github/gitignore repository
 # and distributed under Creative Commons Zero v1.0 Universal license.
 
+=======
+>>>>>>> 92cf4eb429d0e7f1999505895aaa6cc29a192eef
 # This .gitignore file should be placed at the root of your Unity project directory
 #
 # Get latest from https://github.com/github/gitignore/blob/main/Unity.gitignore
@@ -112,6 +115,9 @@ InitTestScene*.unity*
 
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
+<<<<<<< HEAD
 
 # VS Code local settings
 .vscode/
+=======
+>>>>>>> 92cf4eb429d0e7f1999505895aaa6cc29a192eef
