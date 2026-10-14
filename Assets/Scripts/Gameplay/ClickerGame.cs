@@ -4,6 +4,8 @@ using UnityEngine.UI;
 
 public class ClickerGame : MonoBehaviour
 {
+    public static ClickerGame Instance;
+
     [Header("UI — основной")]
     public TextMeshProUGUI coinsText;
     public TextMeshProUGUI perClickText;
@@ -24,13 +26,13 @@ public class ClickerGame : MonoBehaviour
     public Button resetButton;
 
     [Header("Настройки — Клик")]
-    public int startClickCost = 500;
-    public int clickCostMultiplier = 2;
-    public int clickPowerMultiplier = 2;
+    public int startClickCost = 100;
+    public float clickCostGrowth = 1.15f;
+    public float clickPowerGrowth = 1.15f;
 
     [Header("Настройки — Автокликер")]
-    public int startAutoCost = 1000;
-    public int autoCostMultiplier = 2;
+    public int startAutoCost = 500;
+    public float autoCostGrowth = 1.15f;
     public int autoIncomePerLevel = 1;
 
     private int coins = 0;
@@ -38,23 +40,24 @@ public class ClickerGame : MonoBehaviour
     private int coinsPerSecond = 0;
     private int clickLevel = 1;
     private int autoLevel = 0;
-    private int clickUpgradeCost;
-    private int autoUpgradeCost;
 
     private const string KEY_COINS = "coins";
     private const string KEY_PER_CLICK = "per_click";
+    private const string KEY_PER_SEC = "per_sec";
     private const string KEY_CLICK_LEVEL = "click_level";
     private const string KEY_AUTO_LEVEL = "auto_level";
-    private const string KEY_CLICK_COST = "click_cost";
-    private const string KEY_AUTO_COST = "auto_cost";
 
     private float autoTimer = 0f;
+
+    private void Awake()
+    {
+        if (Instance == null) Instance = this;
+        else Destroy(gameObject);
+    }
 
     private void Start()
     {
         Load();
-
-        if (tapButton != null) tapButton.onClick.AddListener(OnTap);
         if (clickUpgradeButton != null) clickUpgradeButton.onClick.AddListener(OnUpgradeClick);
         if (autoUpgradeButton != null) autoUpgradeButton.onClick.AddListener(OnUpgradeAuto);
         if (resetButton != null) resetButton.onClick.AddListener(OnReset);
@@ -71,56 +74,124 @@ public class ClickerGame : MonoBehaviour
             {
                 autoTimer -= 1f;
                 coins += coinsPerSecond;
+                PlayerPrefs.SetInt("total_coins", PlayerPrefs.GetInt("total_coins", 0) + coinsPerSecond);
                 UpdateUI();
                 Save();
             }
         }
     }
 
+    private int GetClickCost()
+    {
+        return Mathf.RoundToInt(startClickCost * Mathf.Pow(clickCostGrowth, clickLevel - 1));
+    }
+
+    private int GetAutoCost()
+    {
+        return Mathf.RoundToInt(startAutoCost * Mathf.Pow(autoCostGrowth, autoLevel));
+    }
+
     public void OnTap()
     {
         coins += coinsPerClick;
+
+        int clicks = PlayerPrefs.GetInt("total_clicks", 0) + 1;
+        PlayerPrefs.SetInt("total_clicks", clicks);
+
+        int totalCoins = PlayerPrefs.GetInt("total_coins", 0) + coinsPerClick;
+        PlayerPrefs.SetInt("total_coins", totalCoins);
+
+        PlayerPrefs.Save();
+
         UpdateUI();
         Save();
+
+        Debug.Log("Кликов: " + clicks);
+
+        if (Achievements.Instance != null)
+            Achievements.Instance.CheckAll();
+
     }
 
     public void OnUpgradeClick()
     {
-        if (coins < clickUpgradeCost) return;
+        int cost = GetClickCost();
+        if (coins < cost) return;
 
-        coins -= clickUpgradeCost;
+        coins -= cost;
         clickLevel++;
-        coinsPerClick *= clickPowerMultiplier;
-        clickUpgradeCost = Mathf.RoundToInt(startClickCost * Mathf.Pow(1.15f, clickLevel));
+        coinsPerClick = clickLevel;
+
+        PlayerPrefs.SetInt("upgrades_bought", PlayerPrefs.GetInt("upgrades_bought", 0) + 1);
+        PlayerPrefs.Save();
 
         UpdateUI();
         Save();
+
+        Debug.Log("Улучшение! Уровень: " + clickLevel + ", куплено всего: " + PlayerPrefs.GetInt("upgrades_bought", 0));
+
+        if (Achievements.Instance == null)
+        {
+            Debug.LogError("!!! Achievements.Instance = NULL — объект Achievements не на сцене!");
+            return;
+        }
+
+        Debug.Log("Вызываю CheckAll...");
+        Achievements.Instance.CheckAll();
+        Debug.Log("CheckAll вызван.");
+
+        if (LevelSystem.Instance != null)
+            LevelSystem.Instance.OnUpgradeBought();
     }
 
     public void OnUpgradeAuto()
     {
-        if (coins < autoUpgradeCost) return;
+        int cost = GetAutoCost();
+        if (coins < cost) return;
 
-        coins -= autoUpgradeCost;
+        coins -= cost;
         autoLevel++;
-        coinsPerSecond += autoIncomePerLevel;
-        autoUpgradeCost *= autoCostMultiplier;
+        coinsPerSecond = autoLevel * autoIncomePerLevel;
+
+        PlayerPrefs.SetInt("upgrades_bought", PlayerPrefs.GetInt("upgrades_bought", 0) + 1);
+        PlayerPrefs.Save();
 
         UpdateUI();
         Save();
+
+        if (Achievements.Instance != null) Achievements.Instance.CheckAll();
+
+        if (LevelSystem.Instance != null)
+            LevelSystem.Instance.OnUpgradeBought();
     }
 
-    public void OnReset()
+   public void OnReset()
     {
         PlayerPrefs.DeleteAll();
+        PlayerPrefs.Save();
+
         coins = 0;
         coinsPerClick = 1;
         coinsPerSecond = 0;
         clickLevel = 1;
         autoLevel = 0;
-        clickUpgradeCost = startClickCost;
-        autoUpgradeCost = startAutoCost;
 
+        UpdateUI();
+
+        if (Achievements.Instance != null)
+            Achievements.Instance.ResetAll();
+
+        if (DailyReward.Instance != null)
+            DailyReward.Instance.ResetAll();
+
+        Debug.Log("[Reset] Прогресс полностью сброшен");
+    }
+
+    public void AddCoins(int amount)
+    {
+        coins += amount;
+        PlayerPrefs.SetInt(KEY_COINS, coins);
+        PlayerPrefs.Save();
         UpdateUI();
     }
 
@@ -131,22 +202,23 @@ public class ClickerGame : MonoBehaviour
         if (perSecondText != null) perSecondText.text = "+" + coinsPerSecond + "/сек";
 
         if (clickLevelText != null) clickLevelText.text = "Ур. " + clickLevel;
-        if (clickUpgradeCostText != null) clickUpgradeCostText.text = clickUpgradeCost.ToString();
-        if (clickUpgradeButton != null) clickUpgradeButton.interactable = coins >= clickUpgradeCost;
+        int clickCost = GetClickCost();
+        if (clickUpgradeCostText != null) clickUpgradeCostText.text = clickCost.ToString();
+        if (clickUpgradeButton != null) clickUpgradeButton.interactable = coins >= clickCost;
 
         if (autoLevelText != null) autoLevelText.text = "Ур. " + autoLevel;
-        if (autoUpgradeCostText != null) autoUpgradeCostText.text = autoUpgradeCost.ToString();
-        if (autoUpgradeButton != null) autoUpgradeButton.interactable = coins >= autoUpgradeCost;
+        int autoCost = GetAutoCost();
+        if (autoUpgradeCostText != null) autoUpgradeCostText.text = autoCost.ToString();
+        if (autoUpgradeButton != null) autoUpgradeButton.interactable = coins >= autoCost;
     }
 
     private void Save()
     {
         PlayerPrefs.SetInt(KEY_COINS, coins);
         PlayerPrefs.SetInt(KEY_PER_CLICK, coinsPerClick);
+        PlayerPrefs.SetInt(KEY_PER_SEC, coinsPerSecond);
         PlayerPrefs.SetInt(KEY_CLICK_LEVEL, clickLevel);
         PlayerPrefs.SetInt(KEY_AUTO_LEVEL, autoLevel);
-        PlayerPrefs.SetInt(KEY_CLICK_COST, clickUpgradeCost);
-        PlayerPrefs.SetInt(KEY_AUTO_COST, autoUpgradeCost);
         PlayerPrefs.Save();
     }
 
@@ -154,10 +226,13 @@ public class ClickerGame : MonoBehaviour
     {
         coins = PlayerPrefs.GetInt(KEY_COINS, 0);
         coinsPerClick = PlayerPrefs.GetInt(KEY_PER_CLICK, 1);
+        coinsPerSecond = PlayerPrefs.GetInt(KEY_PER_SEC, 0);
         clickLevel = PlayerPrefs.GetInt(KEY_CLICK_LEVEL, 1);
         autoLevel = PlayerPrefs.GetInt(KEY_AUTO_LEVEL, 0);
-        clickUpgradeCost = PlayerPrefs.GetInt(KEY_CLICK_COST, startClickCost);
-        autoUpgradeCost = PlayerPrefs.GetInt(KEY_AUTO_COST, startAutoCost);
-        coinsPerSecond = autoLevel * autoIncomePerLevel;
+
+        if (clickLevel < 1) clickLevel = 1;
+        coinsPerClick = clickLevel;
+
+        Debug.Log("[Load] coins=" + coins + " perClick=" + coinsPerClick + " clickLevel=" + clickLevel);
     }
 }

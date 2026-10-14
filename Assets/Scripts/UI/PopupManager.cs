@@ -10,16 +10,19 @@ public class PopupManager : MonoBehaviour
     public GameObject shopPanel;
     public GameObject pausePanel;
     public GameObject achievementsPanel;
+    public GameObject aboutPanel;
 
     [Header("Кнопки открытия")]
     public Button optionButton;
     public Button shopButton;
     public Button pauseButton;
+    public Button aboutButton; 
 
     [Header("Кнопки закрытия")]
     public Button settingsCloseButton;
     public Button shopCloseButton;
     public Button pauseCloseButton;
+    public Button aboutCloseButton; 
 
     private void Awake()
     {
@@ -34,10 +37,14 @@ public class PopupManager : MonoBehaviour
         if (optionButton != null) optionButton.onClick.AddListener(OpenSettings);
         if (shopButton != null) shopButton.onClick.AddListener(OpenShop);
         if (pauseButton != null) pauseButton.onClick.AddListener(OpenPause);
+        if (aboutButton != null) aboutButton.onClick.AddListener(OpenAbout);
 
         if (settingsCloseButton != null) settingsCloseButton.onClick.AddListener(Close);
         if (shopCloseButton != null) shopCloseButton.onClick.AddListener(Close);
         if (pauseCloseButton != null) pauseCloseButton.onClick.AddListener(Close);
+        if (aboutCloseButton != null) aboutCloseButton.onClick.AddListener(Close);
+
+        
     }
 
     public void OpenPanel(GameObject panel)
@@ -56,6 +63,7 @@ public class PopupManager : MonoBehaviour
         if (shopPanel != null) shopPanel.SetActive(false);
         if (pausePanel != null) pausePanel.SetActive(false);
         if (achievementsPanel != null) achievementsPanel.SetActive(false);
+        if (aboutPanel != null) aboutPanel.SetActive(false);
         Time.timeScale = 1f;
     }
 
@@ -63,5 +71,6 @@ public class PopupManager : MonoBehaviour
     public void OpenShop() { OpenPanel(shopPanel); }
     public void OpenPause() { OpenPanel(pausePanel); }
     public void OpenAchievements() { OpenPanel(achievementsPanel); }
+    public void OpenAbout() { OpenPanel(aboutPanel); }  
     public void Close() { CloseAll(); }
 }
